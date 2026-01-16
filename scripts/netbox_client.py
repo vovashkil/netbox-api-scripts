@@ -71,7 +71,13 @@ class NetBoxClient:
                 return None
 
             return response.json()
+        
         except RequestException as exc:
+            if exc.response is not None:
+                raise RuntimeError(
+                    f"NetBox API error {exc.response.status_code}: {exc.response.text}"
+                )
+    
             raise RuntimeError(f"NetBox API request failed: {exc}")
 
     def list_sites(self):
@@ -100,14 +106,47 @@ class NetBoxClient:
         )
         return result["results"][0] if result["count"] > 0 else None
 
-    def create_site(self, name, status, tags):
+    def get_tag_by_name(self, name):
+        """
+        Retrieve a tag by name.
+
+        Args:
+            name (str): Tag name
+
+        Returns:
+            dict | None: Tag object if found
+        """  
+        result = self._request(
+            "GET",
+            "/api/extras/tags/",
+            params={"name": name},
+        )
+        return result["results"][0] if result["count"] > 0 else None
+
+    def create_tag(self, name):
+        """
+        Create a tag if it does not exist.
+
+        Args:
+            name (str): Tag name
+
+        Returns:
+            dict: Created tag object
+        """
+        payload = {
+            "name": name,
+            "slug": name.lower().replace("_", "-"),
+        }
+        return self._request("POST", "/api/extras/tags/", json=payload)
+
+    def create_site(self, name, status="planned", tags=None):
         """
         Create a new site in NetBox.
 
         Args:
             name (str): Site name
-            status (str): Site status (e.g., planned)
-            tags (list): List of tags
+            status (str): Site status slug (e.g. planned, active)
+            tags (list[str]): Optional list of tag names
 
         Returns:
             dict: Created site object
@@ -116,8 +155,18 @@ class NetBoxClient:
             "name": name,
             "slug": name.lower().replace("_", "-"),
             "status": status,
-            "tags": tags,
         }
+
+        if tags:
+            tag_objects = []
+            for tag in tags:
+                tag_obj = self.get_tag_by_name(tag)
+                if not tag_obj:
+                    tag_obj = self.create_tag(tag)
+                tag_objects.append(tag_obj["id"])
+
+            payload["tags"] = tag_objects
+
         return self._request("POST", "/api/dcim/sites/", json=payload)
 
     def delete_site(self, name):
