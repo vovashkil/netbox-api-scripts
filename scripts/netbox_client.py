@@ -51,12 +51,12 @@ class NetBoxClient:
         Perform an HTTP request against the NetBox API.
 
         Args:
-            method (str): HTTP method (GET, POST, etc.)
+            method (str): HTTP method (GET, POST, DELETE, etc.)
             endpoint (str): API endpoint path
             **kwargs: Additional arguments passed to requests
 
         Returns:
-            dict: Parsed JSON response
+            dict | None: Parsed JSON response or None for 204 responses
 
         Raises:
             RuntimeError: On HTTP or network errors
@@ -65,6 +65,11 @@ class NetBoxClient:
         try:
             response = self.session.request(method, url, timeout=10, **kwargs)
             response.raise_for_status()
+
+            # NetBox DELETE returns 204 No Content
+            if response.status_code == 204:
+                return None
+
             return response.json()
         except RequestException as exc:
             raise RuntimeError(f"NetBox API request failed: {exc}")
@@ -114,3 +119,21 @@ class NetBoxClient:
             "tags": tags,
         }
         return self._request("POST", "/api/dcim/sites/", json=payload)
+
+    def delete_site(self, name):
+        """
+        Delete a site from NetBox by name.
+
+        Args:
+            name (str): Site name to delete
+
+        Returns:
+            bool: True if deleted, False if site not found
+        """
+        site = self.get_site_by_name(name)
+        if not site:
+            return False
+
+        site_id = site["id"]
+        self._request("DELETE", f"/api/dcim/sites/{site_id}/")
+        return True
