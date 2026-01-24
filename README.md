@@ -1,14 +1,52 @@
 # NetBox API Scripts
 
-This repository contains a Python CLI tool to manage NetBox sites via the **NetBox REST API**.  
+Python-based automation utilities for **site management** in NetBox (DCIM / IPAM) via its REST API. This repository focuses on **safe, repeatable operations for listing, creating, and deleting sites**.
 
-The main script, `manage_sites.py`, supports the following operations:
+The scripts are designed to be readable, idempotent where possible, and suitable for demonstrating operational automation patterns.
 
-- **list**: List all sites
-- **create**: Create a new site
-- **delete**: Delete a site
+---
 
-The scripts are designed to be **idempotent** and safe to re-run.
+## Purpose
+
+Manually managing sites in NetBox can be error-prone and time-consuming. This project demonstrates:
+
+- Listing existing sites
+- Creating new sites safely
+- Deleting sites safely
+- Handling API errors
+- Writing scripts that can be re-run without unintended side effects
+
+All operations currently cover **sites only**.
+
+---
+
+## Real-World Use Case
+
+This repository is intended to:
+
+- Demonstrate safe automation patterns in infrastructure management
+- Show how to interact with NetBox programmatically
+- Serve as a foundation for integrating site management into broader automation workflows
+
+Operations are limited to site-level management; other NetBox objects (devices, prefixes, IPs) are not yet included.
+
+---
+
+## Architecture & Design
+
+```text
+┌──────────────┐      HTTPS       ┌──────────────┐
+│ Python CLI   │ ───────────────▶ │ NetBox API   │
+│ Scripts      │                  │ (sites only) │
+└──────────────┘                  └──────────────┘
+```
+
+### Design principles
+
+- **Explicit over implicit**: all behavior is clearly defined
+- **Fail fast** on unexpected API responses
+- **Idempotent operations** for create/delete
+- **Separation of concerns** between API client and script logic
 
 ---
 
@@ -16,140 +54,91 @@ The scripts are designed to be **idempotent** and safe to re-run.
 
 ```text
 netbox-api-scripts/
-├── README.md
+├── scripts/
+│   ├── manage_sites.py      # CLI entry point
+│   └── netbox_client.py     # NetBox API wrapper
 ├── requirements.txt
-└── scripts/
-    ├── manage_sites.py
-    └── netbox_client.py
+└── README.md
 ```
 
----
-
-## Prerequisites
-
-- Python 3.8+
-- NetBox instance accessible via HTTP/HTTPS
-- NetBox API Token (set as environment variable)
+- `netbox_client.py` handles API communication
+- `manage_sites.py` contains CLI logic and task-specific code
 
 ---
 
-## Step-by-Step Instructions
+## Authentication & Security
 
-### 1. Clone the repository
+Authentication uses a **NetBox API token** and the **NetBox URL** provided via environment variables:
 
 ```bash
-git clone https://github.com/vovashkil/netbox-api-scripts.git
-cd netbox-api-scripts
+export NETBOX_API_TOKEN="<your-token>"
+export NETBOX_URL="https://netbox.example.com"
 ```
+
+Best practices:
+
+- Tokens are never hard-coded
+- Sensitive values are excluded from version control
+- HTTPS is required for all API communication
 
 ---
 
-### 2. Create a Python virtual environment
+## Installation
 
 ```bash
 python3 -m venv .venv
-```
-
----
-
-### 3. Activate the virtual environment
-
-- On **Linux/macOS**:
-
-```bash
 source .venv/bin/activate
-```
-
-- On **Windows (PowerShell)**:
-
-```powershell
-.\.venv\Scripts\Activate.ps1
-```
-
-If you get an execution policy error, run once (as your user):
-
-```powershell
-Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
-```
-
-Then activate again.
-
----
-
-### 4. Install required dependencies
-
-```bash
 pip install -r requirements.txt
 ```
 
----
+Supported Python version:
 
-### 5. Configure environment variables
-
-Set the following environment variables with your NetBox information:
-
-```bash
-export NETBOX_URL="http://<your-netbox-url>"
-export NETBOX_API_TOKEN="<your-api-token>"
-```
-
-On Windows (PowerShell):
-
-```powershell
-$env:NETBOX_URL="http://<your-netbox-url>"
-$env:NETBOX_API_TOKEN="<your-api-token>"
-```
+- Python 3.9+
 
 ---
 
-### 6. Run scripts
-
-Navigate to the `scripts` folder to run the CLI tool:
+## Usage Example
 
 ```bash
-cd scripts
+python scripts/manage_sites.py --list
+python scripts/manage_sites.py --create <site-name>
+python scripts/manage_sites.py --delete <site-name>
 ```
 
-#### a) List all sites
-
-```bash
-python manage_sites.py list
-```
-
-Add `-v` for verbose output:
-
-```bash
-python manage_sites.py list -v
-```
-
-#### b) Create a new site
-
-```bash
-python manage_sites.py create --name demo-site-1
-```
-
-Optional arguments:
-
-```bash
-python manage_sites.py create --name demo-site-2 --status active --tag "new_dc_buildout,urgent"
-```
-
-#### c) Delete a site
-
-```bash
-python manage_sites.py delete --name demo-site-1
-```
+Operations are idempotent where possible, and scripts are safe to re-run for demonstration and testing purposes.
 
 ---
 
-## Notes
+## Error Handling & Reliability
 
-- The `create` and `delete` commands are **idempotent**: running them multiple times will not cause errors or duplicate sites.
-- Tags can be provided as a **comma-separated list**.
-- The CLI tool can be extended to manage devices, racks, prefixes, and other NetBox objects.
+Includes safeguards for:
+
+- HTTP status code validation
+- Clear error messages on API failures
+- Defensive handling of empty or unexpected responses
+
+Failure scenarios considered:
+
+- Invalid or expired API tokens
+- Network timeouts
+- Partial API responses
 
 ---
 
-## License
+## Limitations
 
-This project is provided for **demonstration purposes**.
+- Supports only **site objects** in NetBox
+- Does not include devices, prefixes, or IPs
+- Error handling is explicit but minimal
+- No persistent state outside NetBox
+
+These limitations are intentional to keep scripts understandable and safe.
+
+---
+
+## Future Improvements
+
+- Add structured logging
+- Retry logic with exponential backoff
+- Support for additional NetBox objects
+- Unit tests with mocked API responses
